@@ -96,6 +96,25 @@
                                 </goals>
                             </execution>
                         </executions>
+                        <configuration>
+                            <!-- loopback lets a passphrase-less/batch key sign inside containers -->
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>
+                    </plugin>
+                    <!-- Uploads the signed bundle to the Central Portal (central.sonatype.com).
+                         Credentials: a portal user token in ~/.m2/settings.xml under server id "central". -->
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.6.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>
