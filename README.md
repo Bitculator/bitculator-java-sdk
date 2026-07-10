@@ -15,7 +15,7 @@ Uses the JDK's `java.net.http` client + Jackson; Java 17+.
 <dependency>
   <groupId>com.bitculator</groupId>
   <artifactId>bitculator</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
 </dependency>
 ```
 
@@ -45,7 +45,7 @@ jar + Jackson on the classpath:
 
 ```bash
 mvn -q package
-CP="target/bitculator-1.0.0.jar:$(ls ~/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.17.2/jackson-databind-2.17.2.jar ~/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.17.2/jackson-core-2.17.2.jar ~/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.17.2/jackson-annotations-2.17.2.jar | tr '\n' ':')"
+CP="target/bitculator-1.0.1.jar:$(ls ~/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.17.3/jackson-databind-2.17.3.jar ~/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.17.3/jackson-core-2.17.3.jar ~/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.17.3/jackson-annotations-2.17.3.jar | tr '\n' ':')"
 javac -cp "$CP" examples/Quickstart.java
 BITCULATOR_API_KEY=... java -cp "$CP:examples" Quickstart
 ```

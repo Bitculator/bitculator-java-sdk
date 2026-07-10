@@ -2,11 +2,14 @@ package com.bitculator;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 
 /**
  * A bag of query parameters. Keys mirror the API's names (snake_case); build it
@@ -41,23 +44,15 @@ public final class Params {
             // Render floating-point as a plain full-precision decimal (no scientific
             // notation like 1.0E-7 / 1.0E8) — the API accepts exponent form, but the
             // plain-decimal wire format is kept for consistency across the SDK family.
-            String plain = new java.math.BigDecimal(value.toString())
+            String plain = new BigDecimal(value.toString())
                     .stripTrailingZeros()
                     .toPlainString();
             values.put(key, plain);
+        } else if (value instanceof Object[] array) {
+            return set(key, Arrays.asList(array));
         } else if (value instanceof Iterable<?> iterable) {
             List<String> parts = new ArrayList<>();
             for (Object item : iterable) {
-                if (item != null) {
-                    parts.add(String.valueOf(item));
-                }
-            }
-            if (!parts.isEmpty()) {
-                values.put(key, String.join(",", parts));
-            }
-        } else if (value instanceof Object[] array) {
-            List<String> parts = new ArrayList<>();
-            for (Object item : array) {
                 if (item != null) {
                     parts.add(String.valueOf(item));
                 }
@@ -85,17 +80,10 @@ public final class Params {
         if (values.isEmpty()) {
             return "";
         }
-        StringBuilder sb = new StringBuilder("?");
-        boolean first = true;
+        StringJoiner query = new StringJoiner("&", "?", "");
         for (Map.Entry<String, String> e : values.entrySet()) {
-            if (!first) {
-                sb.append('&');
-            }
-            first = false;
-            sb.append(URLEncoder.encode(e.getKey(), UTF_8))
-                    .append('=')
-                    .append(URLEncoder.encode(e.getValue(), UTF_8));
+            query.add(URLEncoder.encode(e.getKey(), UTF_8) + '=' + URLEncoder.encode(e.getValue(), UTF_8));
         }
-        return sb.toString();
+        return query.toString();
     }
 }

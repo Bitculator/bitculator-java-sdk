@@ -2,6 +2,7 @@ package com.bitculator;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpHeaders;
@@ -10,6 +11,7 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -27,7 +29,7 @@ final class HttpClient {
     private final int maxRetries;
     private final Duration timeout;
     private final java.net.http.HttpClient http;
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper = JsonMapper.builder().build();
 
     private volatile Quota quota;
 
@@ -164,7 +166,9 @@ final class HttpClient {
     private Quota parseQuota(HttpHeaders headers) {
         Map<String, String> raw = new HashMap<>();
         headers.map().forEach((key, list) -> {
-            String lower = key.toLowerCase();
+            // Locale.ROOT: header matching must not depend on the default locale
+            // (e.g. the Turkish dotless-i would break "X-QUOTA-*" lookups).
+            String lower = key.toLowerCase(Locale.ROOT);
             if (lower.startsWith("x-quota-") && !list.isEmpty()) {
                 raw.put(lower, list.get(0));
             }
@@ -173,7 +177,7 @@ final class HttpClient {
                 num(raw.get("x-quota-limit")),
                 num(raw.get("x-quota-remaining")),
                 num(raw.get("x-quota-reset")),
-                raw);
+                Map.copyOf(raw));
     }
 
     private static Integer num(String value) {
@@ -198,7 +202,9 @@ final class HttpClient {
     }
 
     private Duration backoff(int attempt) {
-        long ms = Math.min(8000L, 250L * (1L << attempt));
+        // 250ms, 500ms, 1s, 2s, 4s, then 8s flat; clamping the shift keeps the
+        // math safe for any configured maxRetries (a << past 63 would wrap).
+        long ms = 250L * (1L << Math.min(attempt, 5));
         return Duration.ofMillis(ms + ThreadLocalRandom.current().nextInt(100));
     }
 

@@ -2,6 +2,7 @@ package com.bitculator;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.net.http.HttpHeaders;
+import java.util.Optional;
 
 /**
  * A non-2xx response, carrying the API's {@code { error: { code, message,
@@ -99,11 +100,11 @@ public class ApiException extends BitculatorException {
         return new ApiException(status, code, message, details, requestId, retryAfter);
     }
 
-    private static java.util.Optional<Integer> tryParseInt(String s) {
+    private static Optional<Integer> tryParseInt(String s) {
         try {
-            return java.util.Optional.of(Integer.parseInt(s.trim()));
+            return Optional.of(Integer.parseInt(s.trim()));
         } catch (NumberFormatException e) {
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
     }
 }
