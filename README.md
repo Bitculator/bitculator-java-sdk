@@ -1,5 +1,8 @@
 # Bitculator Data API — Java SDK
 
+[bitculator.com](https://bitculator.com) · [API documentation](https://bitculator.com/en/documentation/api/v1) · [Get an API key](https://bitculator.com/user/developer/api)
+[Maven Central — `com.bitculator:bitculator`](https://central.sonatype.com/artifact/com.bitculator/bitculator) · [GitHub](https://github.com/Bitculator/bitculator-java-sdk)
+
 The official Java SDK for the [Bitculator Data API](https://bitculator.com).
 Uses the JDK's `java.net.http` client + Jackson; Java 17+.
 
