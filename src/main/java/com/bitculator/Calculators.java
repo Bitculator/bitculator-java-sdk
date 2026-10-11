@@ -20,7 +20,8 @@ public final class Calculators extends Resource {
     }
 
     /** Compound interest calculator. Params: principal, rate, duration, duration_unit,
-     * compound_frequency, contribution, contribution_frequency. */
+     * compound_frequency, contribution, contribution_frequency. {@code rate} is the annual
+     * nominal rate in %; each compounding period earns {@code rate} divided by the periods per year. */
     public JsonNode compoundInterest(Params params) {
         return http.get("/api/v1/calculators/compound-interest", params);
     }

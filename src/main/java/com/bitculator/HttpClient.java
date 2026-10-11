@@ -3,7 +3,9 @@ package com.bitculator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
@@ -14,12 +16,14 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.zip.GZIPInputStream;
 
 /**
  * The DRY transport core. Every request in the SDK flows through send(): URL +
- * query building, auth headers, JSON (de)serialization, the response envelope,
- * quota capture, retries with backoff, and error mapping. Uses the JDK's
- * java.net.http client; the only third-party dependency is Jackson for JSON.
+ * query building, auth headers, JSON (de)serialization, gzip response
+ * decompression, the response envelope, quota capture, retries with backoff,
+ * and error mapping. Uses the JDK's java.net.http client; the only third-party
+ * dependency is Jackson for JSON.
  */
 final class HttpClient {
 
@@ -79,6 +83,8 @@ final class HttpClient {
                     .timeout(timeout)
                     .header("Authorization", "Bearer " + apiKey)
                     .header("Accept", "application/json")
+                    // java.net.http never negotiates compression itself; readJson() gunzips.
+                    .header("Accept-Encoding", "gzip")
                     .header("User-Agent", userAgent);
 
             if (body != null) {
@@ -94,9 +100,9 @@ final class HttpClient {
                 builder.method(method, HttpRequest.BodyPublishers.noBody());
             }
 
-            HttpResponse<String> response;
+            HttpResponse<byte[]> response;
             try {
-                response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+                response = http.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
             } catch (HttpTimeoutException e) {
                 if (isIdempotent && attempt < maxRetries) {
                     sleep(backoff(attempt++));
@@ -119,11 +125,11 @@ final class HttpClient {
 
             if (status >= 200 && status < 300) {
                 // A 2xx body must be valid JSON — parse() throws the typed decode error if not.
-                return parse(response.body());
+                return parse(response);
             }
             // Error bodies parse leniently: a proxy's HTML-bodied 502/503 must still
             // reach the retry gate and ApiException mapping below, not throw a decode error.
-            JsonNode json = parseLenient(response.body());
+            JsonNode json = parseLenient(response);
             if ((status == 429 || (status >= 500 && isIdempotent)) && attempt < maxRetries) {
                 sleep(retryDelay(response.headers(), attempt++));
                 continue;
@@ -141,26 +147,41 @@ final class HttpClient {
         return node;
     }
 
-    private JsonNode parse(String body) {
-        if (body == null || body.isEmpty()) {
-            return mapper.getNodeFactory().nullNode();
-        }
+    private JsonNode parse(HttpResponse<byte[]> response) {
         try {
-            return mapper.readTree(body);
+            return readJson(response);
         } catch (IOException e) {
             throw new BitculatorException("Failed to decode response: " + e.getMessage(), e);
         }
     }
 
-    private JsonNode parseLenient(String body) {
-        if (body == null || body.isEmpty()) {
-            return mapper.getNodeFactory().nullNode();
-        }
+    private JsonNode parseLenient(HttpResponse<byte[]> response) {
         try {
-            return mapper.readTree(body);
+            return readJson(response);
         } catch (IOException e) {
             return mapper.getNodeFactory().nullNode();
         }
+    }
+
+    /** The body as JSON (a null node when empty), gunzipped first when the server compressed it. */
+    private JsonNode readJson(HttpResponse<byte[]> response) throws IOException {
+        byte[] body = response.body();
+        if (body != null && body.length > 0 && isGzip(response.headers())) {
+            try (InputStream in = new GZIPInputStream(new ByteArrayInputStream(body))) {
+                body = in.readAllBytes();
+            }
+        }
+        if (body == null || body.length == 0) {
+            return mapper.getNodeFactory().nullNode();
+        }
+        return mapper.readTree(body);
+    }
+
+    private static boolean isGzip(HttpHeaders headers) {
+        return headers.firstValue("content-encoding")
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .filter(value -> value.equals("gzip") || value.equals("x-gzip"))
+                .isPresent();
     }
 
     private Quota parseQuota(HttpHeaders headers) {

@@ -20,7 +20,7 @@ public final class Sentiment extends Resource {
         return http.post("/api/v1/coins/" + enc(slug) + "/votes", Map.of("vote", vote));
     }
 
-    /** Fear &amp; Greed index. Params: coin. */
+    /** Fear &amp; Greed index. Params: coin. Each reading carries {@code index} (0-100, as shown on Bitculator; use it for display) and the raw {@code score} (-100..+100). */
     public JsonNode fearGreed(Params params) {
         return http.get("/api/v1/sentiment/fear-greed", params);
     }
